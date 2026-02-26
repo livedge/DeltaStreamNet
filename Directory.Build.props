@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <Authors>livedge</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/livedge/DeltaStreamNet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/livedge/DeltaStreamNet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Description>Delta streaming for .NET — transmits only changed properties using Roslyn source generation.</Description>
+    <PackageTags>delta;streaming;source-generator;roslyn</PackageTags>
+  </PropertyGroup>
+</Project>
