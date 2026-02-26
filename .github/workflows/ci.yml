@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,25 +16,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
-          include-prerelease: true
+          dotnet-version: 10.0.x
 
       - name: Restore
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build -c Release --no-restore
 
       - name: Test
-        run: dotnet test --configuration Release --no-build
+        run: dotnet test -c Release --no-build
 
       - name: Pack
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: dotnet pack DeltaStreamNet/DeltaStreamNet.csproj --configuration Release --no-build -p:Version=0.0.${{ github.run_number }} --output ./nupkg
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: >
+          dotnet pack DeltaStreamNet/DeltaStreamNet.csproj
+          -c Release
+          --no-build
+          --include-symbols
+          --include-source
+          -p:PackageVersion=0.0.${{ github.run_number }}
 
-      - name: Push to NuGet
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - name: Push to GitHub Packages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: >
+          dotnet nuget push **/*.nupkg
+          --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --skip-duplicate
