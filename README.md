@@ -1,6 +1,7 @@
 # DeltaStreamNet
 
 [![CI](https://github.com/livedge/DeltaStreamNet/actions/workflows/ci.yml/badge.svg)](https://github.com/livedge/DeltaStreamNet/actions/workflows/ci.yml)
+[![GitHub Package](https://img.shields.io/badge/nuget-GitHub%20Packages-blue?logo=nuget)](https://github.com/livedge/DeltaStreamNet/pkgs/nuget/DeltaStreamNet)
 
 A .NET library for delta streaming — transmit only changed properties instead of full object state, powered by Roslyn incremental source generation. Zero reflection, fully compile-time.
 
