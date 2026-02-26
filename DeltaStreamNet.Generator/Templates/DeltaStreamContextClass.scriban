@@ -1,0 +1,12 @@
+using DeltaStreamNet;
+
+namespace {{ context_namespace }};
+
+public partial class {{ context_class_name }}
+{
+    public static {{ context_class_name }} Default { get; } = new {{ context_class_name }}();
+
+    {{~ for dto in dto_types ~}}
+    public IDeltaFrameGenerator<{{ dto.full_name }}> {{ dto.name }} { get; } = new {{ dto.generator_full_name }}();
+    {{~ end ~}}
+}

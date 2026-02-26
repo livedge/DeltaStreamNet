@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/SolutionFolder/">
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="DeltaStreamNet.Annotations/DeltaStreamNet.Annotations.csproj" />
+  <Project Path="DeltaStreamNet.Benchmarks/DeltaStreamNet.Benchmarks.csproj" />
+  <Project Path="DeltaStreamNet.Generator/DeltaStreamNet.Generator.csproj" />
+  <Project Path="DeltaStreamNet.Sample/DeltaStreamNet.Sample.csproj" />
+  <Project Path="DeltaStreamNet.Tests/DeltaStreamNet.Tests.csproj" />
+  <Project Path="DeltaStreamNet/DeltaStreamNet.csproj" />
+</Solution>

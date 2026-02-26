@@ -1,0 +1,102 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using DeltaStreamNet;
+
+namespace {{ class_namespace }};
+
+{{~ if class_attribute_block != "" ~}}
+{{ class_attribute_block }}
+{{~ end ~}}
+public partial class {{ delta_class_name }} : IDeltaPatch<{{ class_name }}>
+{
+    {{~ for p in properties ~}}
+    {{~ if p.json_minified_name != "" ~}}
+    [System.Text.Json.Serialization.JsonPropertyName("{{ p.json_minified_name }}")]
+    {{~ end ~}}
+    {{~ if p.attribute_block != "" ~}}
+    {{ p.attribute_block }}
+    {{~ end ~}}
+    {{~ if p.is_stream_frame ~}}
+    public {{ p.delta_type_name }}? {{ p.name }} { get; set; }
+    {{~ else if p.is_keyed_collection ~}}
+    public {{ p.collection_delta_type_name }}? {{ p.name }} { get; set; }
+    {{~ else ~}}
+    public PropertyDeltaWrapper<{{ p.type_name }}>? {{ p.name }} { get; set; }
+    {{~ end ~}}
+    {{~ end ~}}
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasChanges =>
+        {{~ for p in properties ~}}
+        {{ p.name }} != null{{ if !for.last }} ||{{ end }}
+        {{~ end ~}};
+
+    public static {{ delta_class_name }} Create(
+        {{ keyframe_class_name }} previous,
+        {{ keyframe_class_name }} current)
+    {
+        if (previous is null) throw new ArgumentNullException(nameof(previous));
+        if (current is null) throw new ArgumentNullException(nameof(current));
+
+        {{~ for p in properties ~}}
+        {{~ if p.is_stream_frame ~}}
+        var __{{ p.name }}_delta = {{ p.delta_type_name }}.Create(
+            {{ p.key_frame_type_name }}.From(previous.{{ p.name }}),
+            {{ p.key_frame_type_name }}.From(current.{{ p.name }}));
+        {{~ else if p.is_keyed_collection ~}}
+        var __{{ p.name }}_delta = {{ p.collection_delta_type_name }}.Create(
+            previous.{{ p.name }},
+            current.{{ p.name }});
+        {{~ end ~}}
+        {{~ end ~}}
+
+        return new {{ delta_class_name }}
+        {
+            {{~ for p in properties ~}}
+            {{~ if p.is_stream_frame ~}}
+            {{ p.name }} = __{{ p.name }}_delta.HasChanges ? __{{ p.name }}_delta : null{{ if !for.last }},{{ end }}
+            {{~ else if p.is_keyed_collection ~}}
+            {{ p.name }} = __{{ p.name }}_delta.HasChanges ? __{{ p.name }}_delta : null{{ if !for.last }},{{ end }}
+            {{~ else ~}}
+            {{ p.name }} = !EqualityComparer<{{ p.type_name }}>.Default.Equals(
+                previous.{{ p.name }},
+                current.{{ p.name }}) ? new PropertyDeltaWrapper<{{ p.type_name }}> { Value = current.{{ p.name }} } : null{{ if !for.last }},{{ end }}
+            {{~ end ~}}
+            {{~ end ~}}
+        };
+    }
+
+    public {{ keyframe_class_name }} ApplyTo({{ keyframe_class_name }} previous)
+    {
+        if (previous is null) throw new ArgumentNullException(nameof(previous));
+
+        var result = new {{ keyframe_class_name }}
+        {
+            {{~ for p in properties ~}}
+            {{~ if p.is_stream_frame ~}}
+            {{ p.name }} = {{ p.name }} != null
+                ? {{ p.name }}.ApplyTo({{ p.key_frame_type_name }}.From(previous.{{ p.name }})).ToDto()
+                : previous.{{ p.name }}{{ if !for.last }},{{ end }}
+            {{~ else if p.is_keyed_collection ~}}
+            {{ p.name }} = {{ p.name }} != null
+                ? {{ p.name }}.ApplyPatch(previous.{{ p.name }})
+                : previous.{{ p.name }}{{ if !for.last }},{{ end }}
+            {{~ else ~}}
+            {{ p.name }} = {{ p.name }}.HasValue
+                ? {{ p.name }}.Value.Value
+                : previous.{{ p.name }}{{ if !for.last }},{{ end }}
+            {{~ end ~}}
+            {{~ end ~}}
+        };
+
+        return result;
+    }
+
+    public {{ class_name }} ApplyPatch({{ class_name }} value)
+    {
+        if (value is null) throw new ArgumentNullException(nameof(value));
+
+        return ApplyTo({{ keyframe_class_name }}.From(value)).ToDto();
+    }
+}

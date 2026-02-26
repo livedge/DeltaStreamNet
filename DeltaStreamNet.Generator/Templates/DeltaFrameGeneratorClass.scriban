@@ -1,0 +1,13 @@
+using DeltaStreamNet;
+
+namespace {{ class_namespace }};
+
+public class {{ class_name }}DeltaFrameGenerator : IDeltaFrameGenerator<{{ class_name }}>
+{
+    public IDeltaPatch<{{ class_name }}> GeneratePatch({{ class_name }} previous, {{ class_name }} current)
+    {
+        return {{ delta_class_name }}.Create(
+            {{ keyframe_class_name }}.From(previous),
+            {{ keyframe_class_name }}.From(current));
+    }
+}

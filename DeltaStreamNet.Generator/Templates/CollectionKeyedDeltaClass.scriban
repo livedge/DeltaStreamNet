@@ -1,0 +1,101 @@
+
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
+using DeltaStreamNet;
+
+namespace {{ class_namespace }};
+
+public partial class {{ collection_keyed_delta_class_name }} : IDeltaPatch<System.Collections.Generic.List<{{ class_name }}>>
+{
+    [JsonPropertyName("m")]
+    public System.Collections.Generic.List<({{ stream_key_type_name }} Key, {{ delta_class_name }} Delta)> Modifications { get; set; } = [];
+
+    [JsonPropertyName("a")]
+    public System.Collections.Generic.List<{{ class_name }}> Additions { get; set; } = [];
+
+    [JsonPropertyName("d")]
+    public System.Collections.Generic.List<{{ stream_key_type_name }}> Deletions { get; set; } = [];
+
+    [JsonPropertyName("o")]
+    public System.Collections.Generic.List<{{ stream_key_type_name }}> Order { get; set; } = [];
+
+    [JsonIgnore]
+    public bool HasChanges =>
+        Modifications.Count > 0 || Additions.Count > 0 || Deletions.Count > 0;
+
+    public static {{ collection_keyed_delta_class_name }} Create(
+        System.Collections.Generic.List<{{ class_name }}> previous,
+        System.Collections.Generic.List<{{ class_name }}> current)
+    {
+        previous ??= new System.Collections.Generic.List<{{ class_name }}>();
+        current  ??= new System.Collections.Generic.List<{{ class_name }}>();
+
+        var prevByKey = previous.ToDictionary(x => x.{{ stream_key_property_name }});
+        var currByKey = current.ToDictionary(x => x.{{ stream_key_property_name }});
+
+        var modifications = new System.Collections.Generic.List<({{ stream_key_type_name }}, {{ delta_class_name }})>();
+        var additions     = new System.Collections.Generic.List<{{ class_name }}>();
+        var deletions     = new System.Collections.Generic.List<{{ stream_key_type_name }}>();
+        var order         = current.Select(x => x.{{ stream_key_property_name }}).ToList();
+
+        foreach (var kvp in currByKey)
+        {
+            if (prevByKey.TryGetValue(kvp.Key, out var prevItem))
+            {
+                var delta = {{ delta_class_name }}.Create(
+                    {{ keyframe_class_name }}.From(prevItem),
+                    {{ keyframe_class_name }}.From(kvp.Value));
+                if (delta.HasChanges)
+                    modifications.Add((kvp.Key, delta));
+            }
+            else
+            {
+                additions.Add(kvp.Value);
+            }
+        }
+
+        foreach (var key in prevByKey.Keys)
+        {
+            if (!currByKey.ContainsKey(key))
+                deletions.Add(key);
+        }
+
+        return new {{ collection_keyed_delta_class_name }}
+        {
+            Modifications = modifications,
+            Additions     = additions,
+            Deletions     = deletions,
+            Order         = order
+        };
+    }
+
+    public System.Collections.Generic.List<{{ class_name }}> ApplyPatch(
+        System.Collections.Generic.List<{{ class_name }}> value)
+    {
+        value ??= new System.Collections.Generic.List<{{ class_name }}>();
+
+        var byKey = value.ToDictionary(x => x.{{ stream_key_property_name }});
+
+        foreach (var key in Deletions)
+            byKey.Remove(key);
+
+        foreach (var (key, delta) in Modifications)
+        {
+            if (byKey.TryGetValue(key, out var existing))
+                byKey[key] = delta.ApplyPatch(existing);
+        }
+
+        foreach (var item in Additions)
+            byKey[item.{{ stream_key_property_name }}] = item;
+
+        var result = new System.Collections.Generic.List<{{ class_name }}>(Order.Count);
+        foreach (var key in Order)
+        {
+            if (byKey.TryGetValue(key, out var item))
+                result.Add(item);
+        }
+
+        return result;
+    }
+}

@@ -1,0 +1,39 @@
+namespace {{ class_namespace }};
+
+{{~ if class_attribute_block != "" ~}}
+{{ class_attribute_block }}
+{{~ end ~}}
+public partial class {{ keyframe_class_name }}
+{
+    {{~ for p in properties ~}}
+    {{~ if p.json_minified_name != "" ~}}
+    [System.Text.Json.Serialization.JsonPropertyName("{{ p.json_minified_name }}")]
+    {{~ end ~}}
+    {{~ if p.attribute_block != "" ~}}
+    {{ p.attribute_block }}
+    {{~ end ~}}
+    public {{ p.type_name }} {{ p.name }} { get; set; }
+    {{~ end ~}}
+
+    public static {{ keyframe_class_name }} From({{ class_name }} source)
+    {
+        if (source == null) throw new System.ArgumentNullException(nameof(source));
+
+        return new {{ keyframe_class_name }}
+        {
+            {{~ for p in properties ~}}
+            {{ p.name }} = source.{{ p.name }}{{ if !for.last }},{{ end }}
+            {{~ end ~}}
+        };
+    }
+
+    public {{ class_name }} ToDto()
+    {
+        return new {{ class_name }}
+        {
+            {{~ for p in properties ~}}
+            {{ p.name }} = {{ p.name }}{{ if !for.last }},{{ end }}
+            {{~ end ~}}
+        };
+    }
+}
