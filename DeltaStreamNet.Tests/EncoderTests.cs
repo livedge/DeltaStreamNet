@@ -36,7 +36,6 @@ public class EncoderTests
 
         var delta = encoder.EncodeChanges(new TestDto { Name = "Alice", Score = 200 });
         var patch = (TestDtoDeltaFrame)delta.Patch;
-
         Assert.Null(patch.Name);
         Assert.NotNull(patch.Score);
         Assert.Equal(200, patch.Score!.Value.Value);
@@ -51,7 +50,6 @@ public class EncoderTests
 
         var delta = encoder.EncodeChanges(new TestDto { Name = "Bob", Score = 100 });
         var patch = (TestDtoDeltaFrame)delta.Patch;
-
         Assert.NotNull(patch.Name);
         Assert.Null(patch.Score);
         Assert.Equal("Bob", patch.Name!.Value.Value);

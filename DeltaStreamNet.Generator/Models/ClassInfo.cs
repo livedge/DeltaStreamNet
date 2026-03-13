@@ -17,6 +17,8 @@ public record struct ClassInfo
     public string ClassAttributeBlock { get; set; }
     public bool PropagateAttributes { get; set; }
     public bool MinifyJson { get; set; }
+    public bool EmitProtobuf { get; set; }
+    public bool HasProtoContract { get; set; }
 
     #region Equality members
 
@@ -30,7 +32,9 @@ public record struct ClassInfo
                CollectionKeyedDeltaClassName == other.CollectionKeyedDeltaClassName &&
                ClassAttributeBlock == other.ClassAttributeBlock &&
                PropagateAttributes == other.PropagateAttributes &&
-               MinifyJson == other.MinifyJson;
+               MinifyJson == other.MinifyJson &&
+               EmitProtobuf == other.EmitProtobuf &&
+               HasProtoContract == other.HasProtoContract;
     }
 
     public readonly override int GetHashCode()
@@ -48,6 +52,8 @@ public record struct ClassInfo
             hashCode = (hashCode * 397) ^ ClassAttributeBlock.GetHashCode();
             hashCode = (hashCode * 397) ^ PropagateAttributes.GetHashCode();
             hashCode = (hashCode * 397) ^ MinifyJson.GetHashCode();
+            hashCode = (hashCode * 397) ^ EmitProtobuf.GetHashCode();
+            hashCode = (hashCode * 397) ^ HasProtoContract.GetHashCode();
             return hashCode;
         }
     }

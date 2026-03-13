@@ -1,0 +1,29 @@
+<Project>
+
+  <!-- Auto-pack on build for packable projects only -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'false'">
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)nupkg</PackageOutputPath>
+  </PropertyGroup>
+
+  <!-- Dev version: 0.1.0-dev.{commit-count} -->
+  <Target Name="SetDevVersion" BeforeTargets="PrepareForBuild;GenerateNuspec" Condition="'$(VersionSuffix)' == ''">
+    <Exec Command="git rev-list --count HEAD" ConsoleToMsBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_CommitCount" />
+    </Exec>
+    <PropertyGroup>
+      <VersionSuffix>dev.$(_CommitCount)</VersionSuffix>
+      <PackageVersion>$(VersionPrefix)-$(VersionSuffix)</PackageVersion>
+      <Version>$(VersionPrefix)-$(VersionSuffix)</Version>
+    </PropertyGroup>
+  </Target>
+
+  <!-- Copy to local feed after pack -->
+  <Target Name="PushToLocalFeed" AfterTargets="Pack" Condition="'$(IsPackable)' != 'false'">
+    <Copy SourceFiles="$(PackageOutputPath)\$(PackageId).$(PackageVersion).nupkg"
+          DestinationFolder="C:\local.nuget"
+          SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Published $(PackageId) $(PackageVersion) → C:\local.nuget" />
+  </Target>
+
+</Project>

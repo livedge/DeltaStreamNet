@@ -45,14 +45,13 @@ public static class PayloadHelpers
         var encoder = new DeltaStreamEncoder<PayloadDto>(V1, PayloadContext.Default.PayloadDto);
 
         // Helper: build a wire-ready object using the minified envelope keys
-        // and casting Patch to its concrete type (IDeltaPatch<T> won't serialize polymorphically)
         object WireFrame(DeltaFrame<PayloadDto> delta) => new
         {
             f = delta.Type,
             u = delta.EncoderUuid,
             v = delta.Version,
             t = delta.Timestamp,
-            p = (PayloadDtoDeltaFrame)delta.Patch
+            p = delta.Patch
         };
 
         Console.WriteLine("========== 1. KeyFrame (initial full state) ==========");

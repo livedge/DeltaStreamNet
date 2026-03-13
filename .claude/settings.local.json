@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet test DeltaStreamNet.Tests/DeltaStreamNet.Tests.csproj)",
+      "Bash(dotnet test DeltaStreamNet.Tests)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" test:*)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run:*)",
+      "Bash(DOTNET_ROLL_FORWARD=LatestMajor dotnet build:*)",
+      "Bash(DOTNET_ROLL_FORWARD=LatestMajor dotnet test:*)",
+      "Bash(DOTNET_ROLL_FORWARD=LatestMajor dotnet run:*)",
+      "Bash(dotnet tool:*)",
+      "Read(//c/NuGet/**)",
+      "Read(//c/Users/david/.nuget/**)",
+      "Bash(dotnet pack:*)",
+      "Bash(dotnet nuget:*)",
+      "Bash(git:*)",
+      "Bash(dotnet msbuild:*)",
+      "Bash(find /c/OneDrive/Workspace/repos/libraries/DeltaStreamNet/DeltaStreamNet.Tests -name \"*HappyPath*\" -o -name \"*Transport*\" -o -name \"*Integration*\" 2>/dev/null | head -20)",
+      "Bash(find /c/OneDrive/Workspace/repos/libraries/DeltaStreamNet -name \"*.g.cs\" 2>/dev/null | head -10)",
+      "Bash(find \"C:/OneDrive/Workspace/repos/libraries/DeltaStreamNet/DeltaStreamNet.Sample/obj\" -name \"*.cs\" -path \"*/DeltaStreamNet.Generator/*\" 2>/dev/null | head -30)",
+      "Bash(cd \"C:/OneDrive/Workspace/repos/libraries/DeltaStreamNet\" && dotnet build DeltaStreamNet.Sample/DeltaStreamNet.Sample.csproj 2>&1 | tail -30)",
+      "Bash(find \"C:/OneDrive/Workspace/repos/libraries/DeltaStreamNet/DeltaStreamNet.Tests/obj\" -type f -name \"*.cs\" ! -name \"*AssemblyInfo*\" ! -name \"*AssemblyAttributes*\" 2>/dev/null | head -20)",
+      "Bash(cd \"C:/OneDrive/Workspace/repos/libraries/DeltaStreamNet\" && dotnet build DeltaStreamNet.Sample/DeltaStreamNet.Sample.csproj -p:EmitCompilerGeneratedFiles=true 2>&1 | tail -15)",
+      "Bash(cd \"C:/OneDrive/Workspace/repos/libraries/DeltaStreamNet\" && dotnet build DeltaStreamNet.Tests/DeltaStreamNet.Tests.csproj -p:EmitCompilerGeneratedFiles=true 2>&1 | tail -15)",
+      "Bash(find . -type f ! -path \"*/obj/*\" ! -path \"*/bin/*\" ! -path \"*/.git/*\" | grep -E \"\\\\.\\(sbncs|md|txt|xml|json\\)$\" | sort)",
+      "Bash(cd \"C:\\\\OneDrive\\\\Workspace\\\\repos\\\\libraries\\\\DeltaStreamNet\" && dotnet test DeltaStreamNet.Tests/DeltaStreamNet.Tests.csproj --filter \"FullyQualifiedName~ProtobufAttributePropagation\" --no-restore 2>&1 | tail -60)",
+      "Bash(cd \"C:\\\\OneDrive\\\\Workspace\\\\repos\\\\libraries\\\\DeltaStreamNet\" && dotnet build 2>&1 | tail -20)",
+      "Bash(cd \"C:\\\\OneDrive\\\\Workspace\\\\repos\\\\libraries\\\\DeltaStreamNet\" && dotnet build 2>&1 | tail -5 && echo \"---\" && dotnet test DeltaStreamNet.Tests/DeltaStreamNet.Tests.csproj 2>&1 | tail -5)",
+      "Bash(find \"C:\\\\OneDrive\\\\Workspace\\\\repos\\\\libraries\\\\DeltaStreamNet\\\\DeltaStreamNet.Tests\\\\obj\\\\Debug\\\\net10.0\\\\generated\" -name \"*.DeltaFrame.g.cs\" 2>/dev/null | head -1)"
+    ]
+  }
+}

@@ -31,7 +31,7 @@ public class JsonWireFormatIntegrationTests
             Tick("AAPL", 150m, 5000), TickerContext.Default.TickerDto);
         var delta = encoder.EncodeChanges(Tick("AAPL", 151m, 5000));
 
-        var wire = WireCodec.EncodeDeltaFrame(delta, (TickerDtoDeltaFrame)delta.Patch);
+        var wire = WireCodec.EncodeDeltaFrame(delta);
         var json = System.Text.Encoding.UTF8.GetString(wire.Payload);
 
         // Only Price/Bid/Ask changed — Symbol and Volume should be null (omitted)
@@ -49,14 +49,14 @@ public class JsonWireFormatIntegrationTests
 
         // KeyFrame through wire
         var kfWire = WireCodec.EncodeKeyFrame(encoder.MainFrame);
-        consumer.ApplyFrame(WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(kfWire));
+        consumer.ApplyFrame(WireCodec.Decode<TickerDto>(kfWire));
 
         // Each price update through wire
         for (var i = 1; i < prices.Length; i++)
         {
             var delta = encoder.EncodeChanges(Tick("TEST", prices[i], i));
-            var wire = WireCodec.EncodeDeltaFrame(delta, (TickerDtoDeltaFrame)delta.Patch);
-            var decoded = WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(wire);
+            var wire = WireCodec.EncodeDeltaFrame(delta);
+            var decoded = WireCodec.Decode<TickerDto>(wire);
             consumer.ApplyFrame(decoded);
         }
 

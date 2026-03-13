@@ -118,6 +118,8 @@ public class FrameWrapperGenerator : IIncrementalGenerator
             class_attribute_block = classInfo?.ClassAttributeBlock ?? "",
             propagate_attributes = classInfo?.PropagateAttributes ?? false,
             minify_json = classInfo?.MinifyJson ?? false,
+            emit_protobuf = classInfo?.EmitProtobuf ?? false,
+            has_proto_contract = classInfo?.HasProtoContract ?? false,
             properties = classInfo?.Properties.Select(p => new
             {
                 type_name = p.TypeName,
@@ -128,7 +130,8 @@ public class FrameWrapperGenerator : IIncrementalGenerator
                 attribute_block = p.AttributeBlock,
                 is_keyed_collection = p.IsKeyedCollection,
                 collection_delta_type_name = p.CollectionDeltaTypeName,
-                json_minified_name = p.JsonMinifiedName ?? ""
+                json_minified_name = p.JsonMinifiedName ?? "",
+                has_proto_member = p.HasProtoMember
             })
         };
 
@@ -182,6 +185,10 @@ public class FrameWrapperGenerator : IIncrementalGenerator
             .FirstOrDefault(na => na.Key == "MinifyJson")
             .Value.Value is true;
 
+        var protoContractAttr = compilation.GetTypeByMetadataName("ProtoBuf.ProtoContractAttribute");
+        var hasProtoContract = protoContractAttr != null &&
+            classSymbol.GetAttributes().Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, protoContractAttr));
+
         var streamKeyAttr = compilation.GetTypeByMetadataName("DeltaStreamNet.StreamKeyAttribute");
         var keyProp = streamKeyAttr != null
             ? classSymbol.GetMembers().OfType<IPropertySymbol>()
@@ -193,7 +200,8 @@ public class FrameWrapperGenerator : IIncrementalGenerator
         var ns = classSymbol.ContainingNamespace?.ToDisplayString();
 
         var propertyInfos = GetPropertyInfos(classSymbol, compilation, propagateAttributes,
-            filterJsonPropertyName: minifyJson && propagateAttributes).ToList();
+            filterJsonPropertyName: minifyJson && propagateAttributes,
+            detectProtoMember: hasProtoContract).ToList();
 
         if (minifyJson)
         {
@@ -221,17 +229,22 @@ public class FrameWrapperGenerator : IIncrementalGenerator
                 ? GetClassAttributeBlock(classSymbol, compilation)
                 : string.Empty,
             PropagateAttributes = propagateAttributes,
-            MinifyJson = minifyJson
+            MinifyJson = minifyJson,
+            EmitProtobuf = hasProtoContract,
+            HasProtoContract = hasProtoContract && propagateAttributes
         };
     }
 
     private IEnumerable<PropertyInfo> GetPropertyInfos(
         INamedTypeSymbol classSymbol, Compilation compilation, bool propagateAttributes,
-        bool filterJsonPropertyName = false)
+        bool filterJsonPropertyName = false, bool detectProtoMember = false)
     {
         var streamFrameAttr = compilation.GetTypeByMetadataName(typeof(StreamFrameAttribute).FullName!);
         var streamKeyAttr   = compilation.GetTypeByMetadataName("DeltaStreamNet.StreamKeyAttribute");
         var listSymbol      = compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
+        var protoMemberAttr = detectProtoMember
+            ? compilation.GetTypeByMetadataName("ProtoBuf.ProtoMemberAttribute")
+            : null;
 
         return classSymbol.GetMembers().OfType<IPropertySymbol>()
             .Where(p => p.DeclaredAccessibility == Accessibility.Public && !p.IsStatic)
@@ -277,6 +290,9 @@ public class FrameWrapperGenerator : IIncrementalGenerator
                     }
                 }
 
+                var hasProtoMember = protoMemberAttr != null && propagateAttributes &&
+                    p.GetAttributes().Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, protoMemberAttr));
+
                 return new PropertyInfo
                 {
                     Accessibility = p.DeclaredAccessibility,
@@ -289,7 +305,8 @@ public class FrameWrapperGenerator : IIncrementalGenerator
                         ? GetPropertyAttributeBlock(p, compilation, filterJsonPropertyName)
                         : string.Empty,
                     IsKeyedCollection = isKeyedCollection,
-                    CollectionDeltaTypeName = collectionDeltaTypeName
+                    CollectionDeltaTypeName = collectionDeltaTypeName,
+                    HasProtoMember = hasProtoMember
                 };
             });
     }
@@ -418,6 +435,8 @@ public class FrameWrapperGenerator : IIncrementalGenerator
         if (!matchingAttrs.Any())
             return null;
 
+        var hasProtobufRegistry = compilation.GetTypeByMetadataName("DeltaStreamNet.FrameProtobufRegistry") != null;
+
         var dtoTypes = matchingAttrs
             .Select(a => a.ConstructorArguments.Length > 0
                 ? a.ConstructorArguments[0].Value as INamedTypeSymbol
@@ -427,7 +446,10 @@ public class FrameWrapperGenerator : IIncrementalGenerator
             {
                 Name = t!.Name,
                 FullName = t.ToDisplayString(),
-                GeneratorFullName = $"{t.ContainingNamespace?.ToDisplayString()}.{t.Name}DeltaFrameGenerator"
+                GeneratorFullName = $"{t.ContainingNamespace?.ToDisplayString()}.{t.Name}DeltaFrameGenerator",
+                DeltaFullName = $"{t.ContainingNamespace?.ToDisplayString()}.{t.Name}DeltaFrame",
+                HasProtobuf = hasProtobufRegistry && t.GetAttributes().Any(a =>
+                    a.AttributeClass?.ToDisplayString() == "ProtoBuf.ProtoContractAttribute")
             })
             .ToList();
 
@@ -451,7 +473,9 @@ public class FrameWrapperGenerator : IIncrementalGenerator
             {
                 name = d.Name,
                 full_name = d.FullName,
-                generator_full_name = d.GeneratorFullName
+                generator_full_name = d.GeneratorFullName,
+                delta_full_name = d.DeltaFullName,
+                has_protobuf = d.HasProtobuf
             })
         };
 

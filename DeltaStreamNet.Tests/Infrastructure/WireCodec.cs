@@ -22,14 +22,16 @@ public static class WireCodec
         return new WireMessage(JsonSerializer.SerializeToUtf8Bytes(envelope, WireOptions));
     }
 
-    public static WireMessage EncodeDeltaFrame<T>(DeltaFrame<T> delta, object concretePatch)
+    public static WireMessage EncodeDeltaFrame<T>(DeltaFrame<T> delta)
     {
-        var envelope = new { f = delta.Type, delta.EncoderUuid, delta.Version, delta.Timestamp, Patch = concretePatch };
+        // Serialize Patch using its runtime type so concrete properties are included
+        var patchJson = JsonSerializer.SerializeToUtf8Bytes(delta.Patch, delta.Patch.GetType(), WireOptions);
+        var patchElement = JsonDocument.Parse(patchJson).RootElement;
+        var envelope = new { f = delta.Type, delta.EncoderUuid, delta.Version, delta.Timestamp, Patch = patchElement };
         return new WireMessage(JsonSerializer.SerializeToUtf8Bytes(envelope, WireOptions));
     }
 
-    public static Frame<T> Decode<T, TDelta>(WireMessage message)
-        where TDelta : IDeltaPatch<T>
+    public static Frame<T> Decode<T>(WireMessage message)
     {
         using var doc = JsonDocument.Parse(message.Payload);
         var root = doc.RootElement;
@@ -53,7 +55,8 @@ public static class WireCodec
         }
         else
         {
-            var patch = root.GetProperty("Patch").Deserialize<TDelta>(WireOptions)!;
+            var patchType = FrameJsonConverterFactory.GetPatchType<T>();
+            var patch = (IDeltaPatch<T>)root.GetProperty("Patch").Deserialize(patchType, WireOptions)!;
             return new DeltaFrame<T>
             {
                 Type = FrameType.Delta,

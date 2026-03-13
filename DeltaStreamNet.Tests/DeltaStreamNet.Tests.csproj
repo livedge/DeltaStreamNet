@@ -23,6 +23,7 @@
     <ItemGroup>
         <ProjectReference Include="..\DeltaStreamNet.Generator\DeltaStreamNet.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
         <ProjectReference Include="..\DeltaStreamNet\DeltaStreamNet.csproj" />
+        <ProjectReference Include="..\DeltaStreamNet.Protobuf\DeltaStreamNet.Protobuf.csproj" />
     </ItemGroup>
 
 

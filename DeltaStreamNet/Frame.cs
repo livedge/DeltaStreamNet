@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DeltaStreamNet;
 
+[JsonConverter(typeof(FrameJsonConverterFactory))]
 public record Frame<T>
 {
     [JsonPropertyName("f")]

@@ -14,4 +14,5 @@ public record struct PropertyInfo
     public bool IsKeyedCollection { get; set; }
     public string? CollectionDeltaTypeName { get; set; }
     public string? JsonMinifiedName { get; set; }
+    public bool HasProtoMember { get; set; }
 }

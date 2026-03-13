@@ -8,4 +8,5 @@
   <Project Path="DeltaStreamNet.Sample/DeltaStreamNet.Sample.csproj" />
   <Project Path="DeltaStreamNet.Tests/DeltaStreamNet.Tests.csproj" />
   <Project Path="DeltaStreamNet/DeltaStreamNet.csproj" />
+  <Project Path="DeltaStreamNet.Protobuf/DeltaStreamNet.Protobuf.csproj" />
 </Solution>

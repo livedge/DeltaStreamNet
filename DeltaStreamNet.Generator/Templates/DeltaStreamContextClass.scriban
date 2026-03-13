@@ -9,4 +9,14 @@ public partial class {{ context_class_name }}
     {{~ for dto in dto_types ~}}
     public IDeltaFrameGenerator<{{ dto.full_name }}> {{ dto.name }} { get; } = new {{ dto.generator_full_name }}();
     {{~ end ~}}
+
+    public {{ context_class_name }}()
+    {
+        {{~ for dto in dto_types ~}}
+        FrameJsonConverterFactory.Register<{{ dto.full_name }}>(typeof({{ dto.delta_full_name }}));
+        {{~ if dto.has_protobuf ~}}
+        FrameProtobufRegistry.Register<{{ dto.full_name }}>(typeof({{ dto.delta_full_name }}));
+        {{~ end ~}}
+        {{~ end ~}}
+    }
 }

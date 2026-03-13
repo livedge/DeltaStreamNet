@@ -128,7 +128,6 @@ public class KeyedCollectionDeltaTests
         var encoder = new DeltaStreamEncoder<MarketBoardDto>(prev, MarketBoardContext.Default.MarketBoardDto);
         var delta = encoder.EncodeChanges(curr);
         var patch = (MarketBoardDtoDeltaFrame)delta.Patch;
-
         Assert.True(patch.HasChanges);
         Assert.NotNull(patch.Items);
         Assert.True(patch.Items!.HasChanges);

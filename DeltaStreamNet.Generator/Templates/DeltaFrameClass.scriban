@@ -5,6 +5,9 @@ using DeltaStreamNet;
 
 namespace {{ class_namespace }};
 
+{{~ if emit_protobuf && !has_proto_contract ~}}
+[ProtoBuf.ProtoContract]
+{{~ end ~}}
 {{~ if class_attribute_block != "" ~}}
 {{ class_attribute_block }}
 {{~ end ~}}
@@ -13,6 +16,9 @@ public partial class {{ delta_class_name }} : IDeltaPatch<{{ class_name }}>
     {{~ for p in properties ~}}
     {{~ if p.json_minified_name != "" ~}}
     [System.Text.Json.Serialization.JsonPropertyName("{{ p.json_minified_name }}")]
+    {{~ end ~}}
+    {{~ if emit_protobuf && !p.has_proto_member ~}}
+    [ProtoBuf.ProtoMember({{ for.index + 1 }})]
     {{~ end ~}}
     {{~ if p.attribute_block != "" ~}}
     {{ p.attribute_block }}

@@ -43,12 +43,12 @@ public class HappyPathTransportTests
         for (var i = 1; i <= 5; i++)
         {
             var delta = encoder.EncodeChanges(Tick(100m + i));
-            transport.Publish(WireCodec.EncodeDeltaFrame(delta, (TickerDtoDeltaFrame)delta.Patch));
+            transport.Publish(WireCodec.EncodeDeltaFrame(delta));
         }
 
         // Consumer drains all and processes
         foreach (var msg in transport.DrainAll())
-            consumer.ApplyFrame(WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(msg));
+            consumer.ApplyFrame(WireCodec.Decode<TickerDto>(msg));
 
         Assert.Equal(105m, consumer.CurrentValue!.Price);
         Assert.Equal(6, consumer.FramesApplied);
@@ -60,7 +60,7 @@ public class HappyPathTransportTests
         var encoder = new DeltaStreamEncoder<TickerDto>(Tick(150.50m, 5000), TickerContext.Default.TickerDto);
 
         var wire = WireCodec.EncodeKeyFrame(encoder.MainFrame);
-        var decoded = WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(wire);
+        var decoded = WireCodec.Decode<TickerDto>(wire);
 
         Assert.IsType<KeyFrame<TickerDto>>(decoded);
         var kf = (KeyFrame<TickerDto>)decoded;
@@ -77,8 +77,8 @@ public class HappyPathTransportTests
         var encoder = new DeltaStreamEncoder<TickerDto>(Tick(150m), TickerContext.Default.TickerDto);
         var delta = encoder.EncodeChanges(Tick(151m));
 
-        var wire = WireCodec.EncodeDeltaFrame(delta, (TickerDtoDeltaFrame)delta.Patch);
-        var decoded = WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(wire);
+        var wire = WireCodec.EncodeDeltaFrame(delta);
+        var decoded = WireCodec.Decode<TickerDto>(wire);
 
         Assert.IsType<DeltaFrame<TickerDto>>(decoded);
         var df = (DeltaFrame<TickerDto>)decoded;
@@ -100,14 +100,14 @@ public class HappyPathTransportTests
 
         // Simulate: serialize over wire → deserialize → feed to consumer
         var kfWire = WireCodec.EncodeKeyFrame(encoder.MainFrame);
-        consumer.ApplyFrame(WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(kfWire));
+        consumer.ApplyFrame(WireCodec.Decode<TickerDto>(kfWire));
 
         var prices = new[] { 101m, 102m, 99m, 103m, 100.5m };
         foreach (var px in prices)
         {
             var delta = encoder.EncodeChanges(Tick(px));
-            var wire = WireCodec.EncodeDeltaFrame(delta, (TickerDtoDeltaFrame)delta.Patch);
-            consumer.ApplyFrame(WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(wire));
+            var wire = WireCodec.EncodeDeltaFrame(delta);
+            consumer.ApplyFrame(WireCodec.Decode<TickerDto>(wire));
         }
 
         Assert.Equal(100.5m, consumer.CurrentValue!.Price);

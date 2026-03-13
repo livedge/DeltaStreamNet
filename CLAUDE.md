@@ -29,6 +29,7 @@ DeltaStreamNet is a .NET library for delta streaming — transmitting only chang
 | `DeltaStreamNet` | net9.0 | Core runtime library (encoders, decoders, interfaces) |
 | `DeltaStreamNet.Annotations` | net10.0 | Marker attributes only (`[StreamFrame]`, `[StreamField]`, `[DeltaStreamSerializable]`) |
 | `DeltaStreamNet.Generator` | netstandard2.0 | Roslyn `IIncrementalGenerator`; uses Scriban templates |
+| `DeltaStreamNet.Protobuf` | net10.0 | Protobuf serialization support via `FrameProtobufRegistry` (separate NuGet) |
 | `DeltaStreamNet.Tests` | net9.0 | xUnit tests |
 | `DeltaStreamNet.Benchmarks` | net9.0 | BenchmarkDotNet perf tests |
 | `DeltaStreamNet.Sample` | net9.0 | Real-world usage example |
@@ -46,6 +47,7 @@ Frame<T>  (record)
 - **`IDeltaPatch<T>`**: Single method `ApplyPatch(T value) → T`.
 - **`IDeltaFrameGenerator<T>`**: Single method `GeneratePatch(T previous, T current) → IDeltaPatch<T>`.
 - **`DeltaStreamContext`**: Abstract base class for the generated context that holds generators.
+- **`FrameJsonConverterFactory`**: `JsonConverterFactory` enabling `JsonSerializer.Deserialize<Frame<T>>()` with no manual options. Patch types are auto-registered by the generated context constructor.
 
 ### Source Generator Pipelines (DeltaStreamNet.Generator/)
 
@@ -68,4 +70,6 @@ Templates are Scriban `.sbncs` files embedded as resources and loaded by `Templa
 - **`FrameType` enum**: `Key = 0`, `Delta = 1` — carried as `"f"` on every `Frame<T>` for wire-level type discrimination.
 - **Nested delta recursion**: If a DTO property is itself a `[StreamFrame]` record, the generator uses a nested delta frame instead of a wrapper, enabling efficient deep updates.
 - **Dual representation**: Users work with immutable records (DTOs); generated `KeyFrame` classes are mutable for efficient comparison during patch generation.
+- **`FrameJsonConverterFactory`**: `JsonConverterFactory` enabling `JsonSerializer.Deserialize<Frame<T>>()` with no manual options. Patch types are auto-registered by the generated context constructor.
+- **`FrameProtobufRegistry`** (in `DeltaStreamNet.Protobuf`): Configures `RuntimeTypeModel.Default` for `Frame<T>` → `KeyFrame<T>`/`DeltaFrame<T>` polymorphism. When the protobuf package is referenced, the generator auto-emits `[ProtoContract]`/`[ProtoMember]` on generated types and adds `FrameProtobufRegistry.Register<T>()` calls in the context constructor.
 - All projects use implicit usings and nullable reference types enabled by default.

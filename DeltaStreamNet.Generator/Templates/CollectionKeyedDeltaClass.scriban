@@ -6,18 +6,33 @@ using DeltaStreamNet;
 
 namespace {{ class_namespace }};
 
+{{~ if emit_protobuf && !has_proto_contract ~}}
+[ProtoBuf.ProtoContract]
+{{~ end ~}}
 public partial class {{ collection_keyed_delta_class_name }} : IDeltaPatch<System.Collections.Generic.List<{{ class_name }}>>
 {
     [JsonPropertyName("m")]
+    {{~ if emit_protobuf ~}}
+    [ProtoBuf.ProtoMember(1)]
+    {{~ end ~}}
     public System.Collections.Generic.List<({{ stream_key_type_name }} Key, {{ delta_class_name }} Delta)> Modifications { get; set; } = [];
 
     [JsonPropertyName("a")]
+    {{~ if emit_protobuf ~}}
+    [ProtoBuf.ProtoMember(2)]
+    {{~ end ~}}
     public System.Collections.Generic.List<{{ class_name }}> Additions { get; set; } = [];
 
     [JsonPropertyName("d")]
+    {{~ if emit_protobuf ~}}
+    [ProtoBuf.ProtoMember(3)]
+    {{~ end ~}}
     public System.Collections.Generic.List<{{ stream_key_type_name }}> Deletions { get; set; } = [];
 
     [JsonPropertyName("o")]
+    {{~ if emit_protobuf ~}}
+    [ProtoBuf.ProtoMember(4)]
+    {{~ end ~}}
     public System.Collections.Generic.List<{{ stream_key_type_name }}> Order { get; set; } = [];
 
     [JsonIgnore]

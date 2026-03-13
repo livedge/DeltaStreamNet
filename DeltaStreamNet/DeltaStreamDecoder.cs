@@ -1,4 +1,4 @@
-﻿namespace DeltaStreamNet;
+namespace DeltaStreamNet;
 
 public class DeltaStreamDecoder<T>(KeyFrame<T> keyFrame)
 {
@@ -6,7 +6,7 @@ public class DeltaStreamDecoder<T>(KeyFrame<T> keyFrame)
     {
         if (frame.EncoderUuid != KeyFrame.EncoderUuid)
             throw new ArgumentException("Frame encoder UUID does not match the main frame encoder UUID");
-        
+
         if (frame.Version < KeyFrame.Version)
             throw new ArgumentException("Frame version is lower or equal to the main frame version");
 

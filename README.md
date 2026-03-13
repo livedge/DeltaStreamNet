@@ -69,6 +69,40 @@ Frames serialize directly with `System.Text.Json`:
 
 Unchanged properties are `null` and omitted via `JsonIgnoreCondition.WhenWritingNull`.
 
+### 6. End-to-End Pipeline
+
+A complete encode → serialize → deserialize → decode pipeline:
+
+```csharp
+// --- Sender ---
+var encoder = new DeltaStreamEncoder<Product>(
+    new Product { Name = "Widget", Price = 9.99m, Stock = 50 },
+    AppContext.Default.Product);
+
+// Send initial state as a KeyFrame
+Frame<Product> frame = encoder.MainFrame;
+var json = JsonSerializer.Serialize<Frame<Product>>(frame);
+Send(json);
+
+// Later, send only what changed
+frame = encoder.EncodeChanges(
+    new Product { Name = "Widget", Price = 12.99m, Stock = 50 });
+json = JsonSerializer.Serialize<Frame<Product>>(frame);
+Send(json);
+
+// --- Receiver ---
+// Deserialization just works — no TPatch, no options, no manual configuration
+var initialJson = Receive();
+Frame<Product> received = JsonSerializer.Deserialize<Frame<Product>>(initialJson)!;
+var decoder = new DeltaStreamDecoder<Product>((KeyFrame<Product>)received);
+
+// Apply subsequent deltas
+var deltaJson = Receive();
+Frame<Product> deltaFrame = JsonSerializer.Deserialize<Frame<Product>>(deltaJson)!;
+Product current = decoder.DecodeFrame(deltaFrame)!;
+// current.Price == 12.99m, Name and Stock unchanged
+```
+
 ## Features
 
 ### Nested Delta Recursion
@@ -176,7 +210,7 @@ The source generator produces three classes per `[StreamFrame]` record at compil
 | `{Name}DeltaFrame` | Implements `IDeltaPatch<T>` — uses nullable `PropertyDeltaWrapper<T>?` per property (`null` = unchanged) |
 | `{Name}DeltaFrameGenerator` | Implements `IDeltaFrameGenerator<T>` — compares two KeyFrames to produce a DeltaFrame |
 
-A `[DeltaStreamSerializable]` context generates a partial class with typed generator properties and a `Default` singleton.
+A `[DeltaStreamSerializable]` context generates a partial class with typed generator properties, a `Default` singleton, and auto-registers patch types into `FrameJsonConverterFactory` so `JsonSerializer.Deserialize<Frame<T>>()` works with no configuration.
 
 ## Project Structure
 

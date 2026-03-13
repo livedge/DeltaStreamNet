@@ -75,7 +75,7 @@ public class BurstAndThroughputTests
         for (var i = 1; i <= 20; i++)
         {
             var delta = encoder.EncodeChanges(Tick(100m + i, i));
-            transport.Publish(WireCodec.EncodeDeltaFrame(delta, (TickerDtoDeltaFrame)delta.Patch));
+            transport.Publish(WireCodec.EncodeDeltaFrame(delta));
         }
 
         // Consumer comes online and processes the entire backlog
@@ -84,7 +84,7 @@ public class BurstAndThroughputTests
 
         foreach (var msg in messages)
         {
-            var frame = WireCodec.Decode<TickerDto, TickerDtoDeltaFrame>(msg);
+            var frame = WireCodec.Decode<TickerDto>(msg);
             consumer.ApplyFrame(frame);
         }
 
