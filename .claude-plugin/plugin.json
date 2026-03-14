@@ -1,0 +1,5 @@
+{
+  "name": "deltastreamnet",
+  "version": "0.1.0",
+  "description": "Teaches Claude Code how to use the DeltaStreamNet delta streaming library — prevents decompilation attempts and provides correct usage patterns."
+}
