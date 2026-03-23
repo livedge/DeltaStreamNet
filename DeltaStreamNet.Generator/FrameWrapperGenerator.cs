@@ -31,7 +31,10 @@ public class FrameWrapperGenerator : IIncrementalGenerator
         }
 
         [AttributeUsage(AttributeTargets.Property)]
-        public class StreamFieldAttribute : Attribute {}
+        public class StreamFieldAttribute : Attribute
+        {
+            public bool Static { get; set; }
+        }
 
         [AttributeUsage(AttributeTargets.Property)]
         public class StreamKeyAttribute : Attribute {}
@@ -105,12 +108,18 @@ public class FrameWrapperGenerator : IIncrementalGenerator
 
     private void GenerateFrame(SourceProductionContext sourceProductionContext, ClassInfo? classInfo)
     {
+        EmitFrameTypes(sourceProductionContext, classInfo);
+    }
+
+    private static void EmitFrameTypes(SourceProductionContext ctx, ClassInfo? classInfo)
+    {
         var model = new
         {
             class_namespace = classInfo?.Namespace,
-            class_name = classInfo?.Name,
+            class_name = classInfo?.FullTypeName ?? classInfo?.Name,
             keyframe_class_name = classInfo?.Name + "KeyFrame",
             delta_class_name = classInfo?.Name + "DeltaFrame",
+            generator_class_name = classInfo?.Name + "DeltaFrameGenerator",
             has_stream_key = classInfo?.HasStreamKey ?? false,
             stream_key_property_name = classInfo?.StreamKeyPropertyName,
             stream_key_type_name = classInfo?.StreamKeyTypeName,
@@ -128,31 +137,33 @@ public class FrameWrapperGenerator : IIncrementalGenerator
                 delta_type_name = p.DeltaTypeName,
                 key_frame_type_name = p.KeyFrameTypeName,
                 attribute_block = p.AttributeBlock,
+                delta_attribute_block = p.DeltaAttributeBlock,
                 is_keyed_collection = p.IsKeyedCollection,
                 collection_delta_type_name = p.CollectionDeltaTypeName,
                 json_minified_name = p.JsonMinifiedName ?? "",
-                has_proto_member = p.HasProtoMember
+                has_proto_member = p.HasProtoMember,
+                is_static = p.IsStatic
             })
         };
 
         var keyFrameTemplateScriban = Template.Parse(TemplateLoader.Get("KeyFrameClass.scriban"));
         var keyFrameSource = keyFrameTemplateScriban.Render(model);
-        sourceProductionContext.AddSource($"{classInfo?.Name}.KeyFrame.g.cs", keyFrameSource);
+        ctx.AddSource($"{classInfo?.Name}.KeyFrame.g.cs", keyFrameSource);
 
         var deltaFrameTemplateScriban = Template.Parse(TemplateLoader.Get("DeltaFrameClass.scriban"));
         var deltaFrameSource = deltaFrameTemplateScriban.Render(model);
-        sourceProductionContext.AddSource($"{classInfo?.Name}.DeltaFrame.g.cs", deltaFrameSource);
+        ctx.AddSource($"{classInfo?.Name}.DeltaFrame.g.cs", deltaFrameSource);
 
         var generatorTemplateScriban = Template.Parse(TemplateLoader.Get("DeltaFrameGeneratorClass.scriban"));
         var generatorSource = generatorTemplateScriban.Render(model);
-        sourceProductionContext.AddSource($"{classInfo?.Name}.DeltaFrameGenerator.g.cs", generatorSource);
+        ctx.AddSource($"{classInfo?.Name}.DeltaFrameGenerator.g.cs", generatorSource);
 
         // Emit collection delta class for element types that carry [StreamKey]
         if (classInfo?.HasStreamKey == true)
         {
             var collectionTemplateScriban = Template.Parse(TemplateLoader.Get("CollectionKeyedDeltaClass.scriban"));
             var collectionSource = collectionTemplateScriban.Render(model);
-            sourceProductionContext.AddSource($"{classInfo?.Name}.CollectionKeyedDelta.g.cs", collectionSource);
+            ctx.AddSource($"{classInfo?.Name}.CollectionKeyedDelta.g.cs", collectionSource);
         }
     }
 
@@ -161,6 +172,10 @@ public class FrameWrapperGenerator : IIncrementalGenerator
         var classDeclarationSyntax = (RecordDeclarationSyntax)syntaxContext.Node;
 
         if (ModelExtensions.GetDeclaredSymbol(syntaxContext.SemanticModel, classDeclarationSyntax, cancellationToken) is not INamedTypeSymbol classSymbol)
+            return null;
+
+        // Skip open generic records — closed instantiations are handled by the context pipeline
+        if (classSymbol.TypeParameters.Length > 0)
             return null;
 
         var compilation = syntaxContext.SemanticModel.Compilation;
@@ -219,6 +234,7 @@ public class FrameWrapperGenerator : IIncrementalGenerator
         {
             Namespace = ns,
             Name = classSymbol.Name,
+            FullTypeName = classSymbol.Name,
             Accessibility = classSymbol.DeclaredAccessibility,
             Properties = propertyInfos,
             HasStreamKey = hasStreamKey,
@@ -240,6 +256,7 @@ public class FrameWrapperGenerator : IIncrementalGenerator
         bool filterJsonPropertyName = false, bool detectProtoMember = false)
     {
         var streamFrameAttr = compilation.GetTypeByMetadataName(typeof(StreamFrameAttribute).FullName!);
+        var streamFieldAttr = compilation.GetTypeByMetadataName("DeltaStreamNet.StreamFieldAttribute");
         var streamKeyAttr   = compilation.GetTypeByMetadataName("DeltaStreamNet.StreamKeyAttribute");
         var listSymbol      = compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
         var protoMemberAttr = detectProtoMember
@@ -293,6 +310,12 @@ public class FrameWrapperGenerator : IIncrementalGenerator
                 var hasProtoMember = protoMemberAttr != null && propagateAttributes &&
                     p.GetAttributes().Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, protoMemberAttr));
 
+                var isStaticField = streamFieldAttr != null &&
+                    p.GetAttributes()
+                        .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, streamFieldAttr))
+                        .Any(a => a.NamedArguments
+                            .Any(na => na.Key == "Static" && na.Value.Value is true));
+
                 return new PropertyInfo
                 {
                     Accessibility = p.DeclaredAccessibility,
@@ -304,20 +327,29 @@ public class FrameWrapperGenerator : IIncrementalGenerator
                     AttributeBlock = propagateAttributes
                         ? GetPropertyAttributeBlock(p, compilation, filterJsonPropertyName)
                         : string.Empty,
+                    DeltaAttributeBlock = propagateAttributes
+                        ? GetPropertyAttributeBlock(p, compilation, filterJsonPropertyName, filterJsonConverter: true)
+                        : string.Empty,
                     IsKeyedCollection = isKeyedCollection,
                     CollectionDeltaTypeName = collectionDeltaTypeName,
-                    HasProtoMember = hasProtoMember
+                    HasProtoMember = hasProtoMember,
+                    IsStatic = isStaticField
                 };
             });
     }
 
     private static string GetPropertyAttributeBlock(
-        IPropertySymbol property, Compilation compilation, bool filterJsonPropertyName = false)
+        IPropertySymbol property, Compilation compilation,
+        bool filterJsonPropertyName = false, bool filterJsonConverter = false)
     {
-        var syntaxRef = property.DeclaringSyntaxReferences.FirstOrDefault();
+        // For substituted members (from constructed generics), fall back to OriginalDefinition
+        var syntaxRef = property.DeclaringSyntaxReferences.FirstOrDefault()
+            ?? property.OriginalDefinition.DeclaringSyntaxReferences.FirstOrDefault();
         if (syntaxRef == null) return string.Empty;
 
-        var propertySyntax = (PropertyDeclarationSyntax)syntaxRef.GetSyntax();
+        var syntax = syntaxRef.GetSyntax();
+        if (syntax is not PropertyDeclarationSyntax propertySyntax) return string.Empty;
+
         var semanticModel = compilation.GetSemanticModel(propertySyntax.SyntaxTree);
 
         var attrs = propertySyntax.AttributeLists
@@ -329,7 +361,9 @@ public class FrameWrapperGenerator : IIncrementalGenerator
             .Where(x => x.AttrClass != null &&
                         x.AttrClass.ContainingNamespace?.ToDisplayString() != "DeltaStreamNet" &&
                         (!filterJsonPropertyName ||
-                         x.AttrClass.ToDisplayString() != "System.Text.Json.Serialization.JsonPropertyNameAttribute"))
+                         x.AttrClass.ToDisplayString() != "System.Text.Json.Serialization.JsonPropertyNameAttribute") &&
+                        (!filterJsonConverter ||
+                         x.AttrClass.ToDisplayString() != "System.Text.Json.Serialization.JsonConverterAttribute"))
             .Select(x =>
             {
                 var className = x.AttrClass!.ToDisplayString();
@@ -384,10 +418,14 @@ public class FrameWrapperGenerator : IIncrementalGenerator
 
     private static string GetClassAttributeBlock(INamedTypeSymbol classSymbol, Compilation compilation)
     {
-        var syntaxRef = classSymbol.DeclaringSyntaxReferences.FirstOrDefault();
+        // For constructed generics, fall back to OriginalDefinition
+        var syntaxRef = classSymbol.DeclaringSyntaxReferences.FirstOrDefault()
+            ?? classSymbol.OriginalDefinition.DeclaringSyntaxReferences.FirstOrDefault();
         if (syntaxRef == null) return string.Empty;
 
-        var classSyntax = (RecordDeclarationSyntax)syntaxRef.GetSyntax();
+        var syntax = syntaxRef.GetSyntax();
+        if (syntax is not TypeDeclarationSyntax classSyntax) return string.Empty;
+
         var semanticModel = compilation.GetSemanticModel(classSyntax.SyntaxTree);
 
         var attrs = classSyntax.AttributeLists
@@ -436,34 +474,108 @@ public class FrameWrapperGenerator : IIncrementalGenerator
             return null;
 
         var hasProtobufRegistry = compilation.GetTypeByMetadataName("DeltaStreamNet.FrameProtobufRegistry") != null;
+        var frameAttribute = compilation.GetTypeByMetadataName(typeof(StreamFrameAttribute).FullName!);
 
-        var dtoTypes = matchingAttrs
-            .Select(a => a.ConstructorArguments.Length > 0
-                ? a.ConstructorArguments[0].Value as INamedTypeSymbol
-                : null)
-            .Where(t => t is not null)
-            .Select(t => new DtoTypeInfo
+        var dtoTypes = new List<DtoTypeInfo>();
+        var closedGenericFrameTypes = new List<ClassInfo>();
+
+        foreach (var attr in matchingAttrs)
+        {
+            if (attr.ConstructorArguments.Length == 0)
+                continue;
+
+            var t = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
+            if (t == null)
+                continue;
+
+            var isClosedGeneric = t.IsGenericType && !t.IsUnboundGenericType;
+
+            if (isClosedGeneric)
             {
-                Name = t!.Name,
-                FullName = t.ToDisplayString(),
-                GeneratorFullName = $"{t.ContainingNamespace?.ToDisplayString()}.{t.Name}DeltaFrameGenerator",
-                DeltaFullName = $"{t.ContainingNamespace?.ToDisplayString()}.{t.Name}DeltaFrame",
-                HasProtobuf = hasProtobufRegistry && t.GetAttributes().Any(a =>
-                    a.AttributeClass?.ToDisplayString() == "ProtoBuf.ProtoContractAttribute")
-            })
-            .ToList();
+                var mangledName = GetMangledName(t);
+                var ns = t.ContainingNamespace?.ToDisplayString();
+                var fullTypeName = t.ToDisplayString();
+
+                // Read [StreamFrame] settings from the original (open generic) definition
+                var originalDef = t.OriginalDefinition;
+                var streamFrameAttrData = frameAttribute != null
+                    ? originalDef.GetAttributes()
+                        .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, frameAttribute))
+                    : null;
+
+                var propagateAttributes = streamFrameAttrData?.NamedArguments
+                    .FirstOrDefault(na => na.Key == "PropagateAttributes")
+                    .Value.Value is true;
+
+                var protoContractAttr = compilation.GetTypeByMetadataName("ProtoBuf.ProtoContractAttribute");
+                var hasProtoContract = protoContractAttr != null &&
+                    originalDef.GetAttributes().Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, protoContractAttr));
+
+                // Get properties from the constructed type (type params are substituted)
+                var propertyInfos = GetPropertyInfos(t, compilation, propagateAttributes,
+                    detectProtoMember: hasProtoContract).ToList();
+
+                closedGenericFrameTypes.Add(new ClassInfo
+                {
+                    Namespace = ns,
+                    Name = mangledName,
+                    FullTypeName = fullTypeName,
+                    Accessibility = originalDef.DeclaredAccessibility,
+                    Properties = propertyInfos,
+                    HasStreamKey = false,
+                    ClassAttributeBlock = propagateAttributes
+                        ? GetClassAttributeBlock(t, compilation)
+                        : string.Empty,
+                    PropagateAttributes = propagateAttributes,
+                    EmitProtobuf = hasProtoContract,
+                    HasProtoContract = hasProtoContract && propagateAttributes
+                });
+
+                dtoTypes.Add(new DtoTypeInfo
+                {
+                    Name = mangledName,
+                    FullName = fullTypeName,
+                    GeneratorFullName = string.IsNullOrEmpty(ns)
+                        ? $"{mangledName}DeltaFrameGenerator"
+                        : $"{ns}.{mangledName}DeltaFrameGenerator",
+                    DeltaFullName = string.IsNullOrEmpty(ns)
+                        ? $"{mangledName}DeltaFrame"
+                        : $"{ns}.{mangledName}DeltaFrame",
+                    HasProtobuf = hasProtobufRegistry && hasProtoContract
+                });
+            }
+            else
+            {
+                dtoTypes.Add(new DtoTypeInfo
+                {
+                    Name = t.Name,
+                    FullName = t.ToDisplayString(),
+                    GeneratorFullName = $"{t.ContainingNamespace?.ToDisplayString()}.{t.Name}DeltaFrameGenerator",
+                    DeltaFullName = $"{t.ContainingNamespace?.ToDisplayString()}.{t.Name}DeltaFrame",
+                    HasProtobuf = hasProtobufRegistry && t.GetAttributes().Any(a =>
+                        a.AttributeClass?.ToDisplayString() == "ProtoBuf.ProtoContractAttribute")
+                });
+            }
+        }
 
         return new ContextInfo
         {
             Namespace = classSymbol.ContainingNamespace?.ToDisplayString(),
             Name = classSymbol.Name,
-            DtoTypes = dtoTypes
+            DtoTypes = dtoTypes,
+            ClosedGenericFrameTypes = closedGenericFrameTypes
         };
     }
 
     private void GenerateContext(SourceProductionContext ctx, ContextInfo? contextInfo)
     {
         if (contextInfo is null) return;
+
+        // Emit frame types for closed generic instantiations
+        foreach (var classInfo in contextInfo.Value.ClosedGenericFrameTypes)
+        {
+            EmitFrameTypes(ctx, classInfo);
+        }
 
         var model = new
         {
@@ -482,6 +594,17 @@ public class FrameWrapperGenerator : IIncrementalGenerator
         var template = Template.Parse(TemplateLoader.Get("DeltaStreamContextClass.scriban"));
         var source = template.Render(model);
         ctx.AddSource($"{contextInfo.Value.Name}.g.cs", source);
+    }
+
+    private static string GetMangledName(INamedTypeSymbol type)
+    {
+        if (!type.IsGenericType)
+            return type.Name;
+
+        var args = string.Join("And", type.TypeArguments.Select(a =>
+            a is INamedTypeSymbol named ? GetMangledName(named) : a.Name));
+
+        return $"{type.Name}Of{args}";
     }
 
     #endregion

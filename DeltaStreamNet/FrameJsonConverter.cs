@@ -18,9 +18,9 @@ internal class FrameJsonConverter<T> : JsonConverter<Frame<T>>
         var root = doc.RootElement;
 
         var frameType = (FrameType)root.GetProperty("f").GetByte();
-        var uuid = root.GetProperty("u").GetGuid();
+        var uuid = Base64GuidConverter.ReadElement(root.GetProperty("u"));
         var version = root.GetProperty("v").GetUInt64();
-        var timestamp = root.GetProperty("t").GetDateTime();
+        var timestamp = UnixMillisDateTimeConverter.ReadElement(root.GetProperty("t"));
 
         if (frameType == FrameType.Key)
         {
@@ -52,9 +52,9 @@ internal class FrameJsonConverter<T> : JsonConverter<Frame<T>>
     {
         writer.WriteStartObject();
         writer.WriteNumber("f", (byte)value.Type);
-        writer.WriteString("u", value.EncoderUuid);
+        Base64GuidConverter.WritePropertyValue(writer, "u"u8, value.EncoderUuid);
         writer.WriteNumber("v", value.Version);
-        writer.WriteString("t", value.Timestamp);
+        UnixMillisDateTimeConverter.WritePropertyValue(writer, "t"u8, value.Timestamp);
 
         switch (value)
         {

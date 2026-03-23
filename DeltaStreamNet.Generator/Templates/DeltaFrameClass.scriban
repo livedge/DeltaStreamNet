@@ -14,28 +14,38 @@ namespace {{ class_namespace }};
 public partial class {{ delta_class_name }} : IDeltaPatch<{{ class_name }}>
 {
     {{~ for p in properties ~}}
+    {{~ if !p.is_static ~}}
     {{~ if p.json_minified_name != "" ~}}
     [System.Text.Json.Serialization.JsonPropertyName("{{ p.json_minified_name }}")]
     {{~ end ~}}
     {{~ if emit_protobuf && !p.has_proto_member ~}}
     [ProtoBuf.ProtoMember({{ for.index + 1 }})]
     {{~ end ~}}
+    {{~ if p.is_stream_frame ~}}
     {{~ if p.attribute_block != "" ~}}
     {{ p.attribute_block }}
     {{~ end ~}}
-    {{~ if p.is_stream_frame ~}}
     public {{ p.delta_type_name }}? {{ p.name }} { get; set; }
     {{~ else if p.is_keyed_collection ~}}
+    {{~ if p.attribute_block != "" ~}}
+    {{ p.attribute_block }}
+    {{~ end ~}}
     public {{ p.collection_delta_type_name }}? {{ p.name }} { get; set; }
     {{~ else ~}}
+    {{~ if p.delta_attribute_block != "" ~}}
+    {{ p.delta_attribute_block }}
+    {{~ end ~}}
     public PropertyDeltaWrapper<{{ p.type_name }}>? {{ p.name }} { get; set; }
+    {{~ end ~}}
     {{~ end ~}}
     {{~ end ~}}
 
     [System.Text.Json.Serialization.JsonIgnore]
     public bool HasChanges =>
         {{~ for p in properties ~}}
+        {{~ if !p.is_static ~}}
         {{ p.name }} != null{{ if !for.last }} ||{{ end }}
+        {{~ end ~}}
         {{~ end ~}};
 
     public static {{ delta_class_name }} Create(
@@ -46,6 +56,7 @@ public partial class {{ delta_class_name }} : IDeltaPatch<{{ class_name }}>
         if (current is null) throw new ArgumentNullException(nameof(current));
 
         {{~ for p in properties ~}}
+        {{~ if !p.is_static ~}}
         {{~ if p.is_stream_frame ~}}
         var __{{ p.name }}_delta = {{ p.delta_type_name }}.Create(
             {{ p.key_frame_type_name }}.From(previous.{{ p.name }}),
@@ -56,10 +67,12 @@ public partial class {{ delta_class_name }} : IDeltaPatch<{{ class_name }}>
             current.{{ p.name }});
         {{~ end ~}}
         {{~ end ~}}
+        {{~ end ~}}
 
         return new {{ delta_class_name }}
         {
             {{~ for p in properties ~}}
+            {{~ if !p.is_static ~}}
             {{~ if p.is_stream_frame ~}}
             {{ p.name }} = __{{ p.name }}_delta.HasChanges ? __{{ p.name }}_delta : null{{ if !for.last }},{{ end }}
             {{~ else if p.is_keyed_collection ~}}
@@ -68,6 +81,7 @@ public partial class {{ delta_class_name }} : IDeltaPatch<{{ class_name }}>
             {{ p.name }} = !EqualityComparer<{{ p.type_name }}>.Default.Equals(
                 previous.{{ p.name }},
                 current.{{ p.name }}) ? new PropertyDeltaWrapper<{{ p.type_name }}> { Value = current.{{ p.name }} } : null{{ if !for.last }},{{ end }}
+            {{~ end ~}}
             {{~ end ~}}
             {{~ end ~}}
         };
@@ -80,7 +94,9 @@ public partial class {{ delta_class_name }} : IDeltaPatch<{{ class_name }}>
         var result = new {{ keyframe_class_name }}
         {
             {{~ for p in properties ~}}
-            {{~ if p.is_stream_frame ~}}
+            {{~ if p.is_static ~}}
+            {{ p.name }} = previous.{{ p.name }}{{ if !for.last }},{{ end }}
+            {{~ else if p.is_stream_frame ~}}
             {{ p.name }} = {{ p.name }} != null
                 ? {{ p.name }}.ApplyTo({{ p.key_frame_type_name }}.From(previous.{{ p.name }})).ToDto()
                 : previous.{{ p.name }}{{ if !for.last }},{{ end }}

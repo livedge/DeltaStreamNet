@@ -2,7 +2,7 @@ using DeltaStreamNet;
 
 namespace {{ class_namespace }};
 
-public class {{ class_name }}DeltaFrameGenerator : IDeltaFrameGenerator<{{ class_name }}>
+public class {{ generator_class_name }} : IDeltaFrameGenerator<{{ class_name }}>
 {
     public IDeltaPatch<{{ class_name }}> GeneratePatch({{ class_name }} previous, {{ class_name }} current)
     {

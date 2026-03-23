@@ -8,6 +8,7 @@ public record struct ClassInfo
 {
     public string? Namespace { get; set; }
     public string Name { get; set; }
+    public string FullTypeName { get; set; }
     public Accessibility Accessibility { get; set; }
     public IEnumerable<PropertyInfo> Properties { get; set; }
     public bool HasStreamKey { get; set; }
@@ -24,7 +25,8 @@ public record struct ClassInfo
 
     public readonly bool Equals(ClassInfo other)
     {
-        return Namespace == other.Namespace && Name == other.Name && Accessibility == other.Accessibility &&
+        return Namespace == other.Namespace && Name == other.Name && FullTypeName == other.FullTypeName &&
+               Accessibility == other.Accessibility &&
                Properties.SequenceEqual(other.Properties) &&
                HasStreamKey == other.HasStreamKey &&
                StreamKeyPropertyName == other.StreamKeyPropertyName &&
@@ -43,6 +45,7 @@ public record struct ClassInfo
         {
             var hashCode = (Namespace != null ? Namespace.GetHashCode() : 0);
             hashCode = (hashCode * 397) ^ Name.GetHashCode();
+            hashCode = (hashCode * 397) ^ FullTypeName.GetHashCode();
             hashCode = (hashCode * 397) ^ (int)Accessibility;
             hashCode = (hashCode * 397) ^
                        Properties.Aggregate(hashCode, (current, property) => current ^ property.GetHashCode());
