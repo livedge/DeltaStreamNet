@@ -31,13 +31,11 @@ jobs:
 
       - name: Pack
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: >
-          dotnet pack DeltaStreamNet/DeltaStreamNet.csproj
-          -c Release
-          --no-build
-          --include-symbols
-          --include-source
-          -p:PackageVersion=0.0.${{ github.run_number }}
+        run: |
+          VERSION="0.1.0-ci.${{ github.run_number }}"
+          dotnet pack DeltaStreamNet.Annotations/DeltaStreamNet.Annotations.csproj -c Release --no-build -p:PackageVersion=$VERSION
+          dotnet pack DeltaStreamNet/DeltaStreamNet.csproj -c Release --no-build -p:PackageVersion=$VERSION
+          dotnet pack DeltaStreamNet.Protobuf/DeltaStreamNet.Protobuf.csproj -c Release --no-build -p:PackageVersion=$VERSION
 
       - name: Push to GitHub Packages
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
